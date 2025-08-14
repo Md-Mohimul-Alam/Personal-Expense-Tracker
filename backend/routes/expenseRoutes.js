@@ -1,53 +1,56 @@
 const express = require('express');
-const Expense = require('../models/Expense');
+const { body, param } = require('express-validator');
+const validateRequest = require('../middleware/validateRequest');
 const authMiddleware = require('../middleware/authMiddleware');
+const ExpenseController = require('../controllers/ExpenseController');
 
 const router = express.Router();
 
-// Add Expense
-router.post('/', authMiddleware, async (req, res) => {
-  const { title, amount, category, date } = req.body;
-  try {
-    const expense = new Expense({ title, amount, category, date });
-    await expense.save();
-    res.status(201).json(expense);
-  } catch (error) {
-    res.status(500).json({ message: 'Error adding expense' });
-  }
-});
+// Validation rules for expense
+const expenseValidationRules = [
+  body('title').trim().notEmpty().withMessage('Title is required').isLength({ min: 3 }).withMessage('Title must be at least 3 characters'),
+  body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number'),
+  body('category').trim().notEmpty().withMessage('Category is required'),
+  body('date').isISO8601().withMessage('Invalid date format').toDate()
+];
 
-// Get All Expenses
-router.get('/', authMiddleware, async (req, res) => {
-  try {
-    const expenses = await Expense.find();
-    res.status(200).json(expenses);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching expenses' });
-  }
-});
+// Validation rule for 'id' in URL parameters
+const idValidationRule = [
+  param('id').isMongoId().withMessage('Invalid expense ID')
+];
+
+// Add Expense
+router.post(
+  '/', 
+  authMiddleware,  // Ensure the user is authenticated
+  expenseValidationRules, 
+  validateRequest,  // Validate the request body
+  ExpenseController.addExpense
+);
+
+// Get All Expenses (for authenticated user)
+router.get(
+  '/', 
+  authMiddleware,  // Ensure the user is authenticated
+  ExpenseController.getAllExpenses
+);
 
 // Update Expense
-router.patch('/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  const { title, amount, category, date } = req.body;
-
-  try {
-    const expense = await Expense.findByIdAndUpdate(id, { title, amount, category, date }, { new: true });
-    res.status(200).json(expense);
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating expense' });
-  }
-});
+router.patch(
+  '/:id', 
+  authMiddleware,  // Ensure the user is authenticated
+  [...idValidationRule, ...expenseValidationRules], 
+  validateRequest,  // Validate the request body and parameters
+  ExpenseController.updateExpense
+);
 
 // Delete Expense
-router.delete('/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  try {
-    await Expense.findByIdAndDelete(id);
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting expense' });
-  }
-});
+router.delete(
+  '/:id', 
+  authMiddleware,  // Ensure the user is authenticated
+  idValidationRule,  // Validate the 'id' parameter
+  validateRequest,  // Validate the request parameters
+  ExpenseController.deleteExpense
+);
 
 module.exports = router;

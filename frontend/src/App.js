@@ -5,7 +5,7 @@ import Home from './pages/Home';
 import AddExpense from './pages/AddExpenseForm'; 
 import Login from './pages/LoginForm';
 import Register from './pages/RegisterForm'; 
-
+import './index.css';
 const App = () => {
   return (
     <Router>

@@ -1,34 +1,59 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/expenses';
+const API_URL = 'http://localhost:5005/api/expenses';
 
-// Add Expense
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
+
+const handleRequest = async (method, endpoint = '', data = null, token = null) => {
+  try {
+    const config = {
+      method,
+      url: endpoint,
+      data,
+      headers: token ? { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      } : {}
+    };
+    
+    const response = await api(config);
+    return response.data;
+  } catch (error) {
+    console.error(`Error with ${method} request:`, error.response || error.message);
+    
+    let errorMessage = 'Something went wrong!';
+    if (error.response) {
+      // Server responded with a status code outside 2xx
+      errorMessage = error.response.data?.message || error.response.statusText;
+    } else if (error.request) {
+      // Request was made but no response received
+      errorMessage = 'No response from server';
+    }
+    
+    throw new Error(errorMessage);
+  }
+};
+
+
+// API functions
 export const addExpense = async (expenseData, token) => {
-  const response = await axios.post(API_URL, expenseData, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  return handleRequest('POST', '', expenseData, token);
 };
 
-// Get All Expenses
 export const getExpenses = async (token) => {
-  const response = await axios.get(API_URL, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  return handleRequest('GET', '', null, token);
 };
 
-// Update Expense
 export const updateExpense = async (id, expenseData, token) => {
-  const response = await axios.patch(`${API_URL}/${id}`, expenseData, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  return handleRequest('PATCH', `/${id}`, expenseData, token);
 };
 
-// Delete Expense
 export const deleteExpense = async (id, token) => {
-  await axios.delete(`${API_URL}/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  return handleRequest('DELETE', `/${id}`, null, token);
 };

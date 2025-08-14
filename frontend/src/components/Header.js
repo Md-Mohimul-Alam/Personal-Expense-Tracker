@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const Header = () => {
   return (
-    <header className="bg-blue-600 text-white shadow-md">
+    <header className="bg-teal-600 text-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         {/* Logo Section */}
         <div className="text-2xl font-bold">
@@ -16,22 +16,22 @@ const Header = () => {
         <nav>
           <ul className="flex space-x-4">
             <li>
-              <Link to="/" className="hover:text-gray-300">
+              <Link to="/" className="hover:text-gray-300 hover:underline">
                 Home
               </Link>
             </li>
             <li>
-              <Link to="/add" className="hover:text-gray-300">
+              <Link to="/add" className="hover:text-gray-300 hover:underline">
                 Add Expense
               </Link>
             </li>
             <li>
-              <Link to="/login" className="hover:text-gray-300">
+              <Link to="/login" className="hover:text-gray-300 hover:underline">
                 Login
               </Link>
             </li>
             <li>
-              <Link to="/register" className="hover:text-gray-300">
+              <Link to="/register" className="hover:text-gray-300  hover:underline">
                 Register
               </Link>
             </li>
