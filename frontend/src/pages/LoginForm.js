@@ -37,10 +37,10 @@ const LoginForm = ({ onLogin }) => {
       localStorage.setItem('user', JSON.stringify(user));
       
       if (onLogin) onLogin(user._id);
-      navigate('/dashboard'); // Redirect to dashboard after login
+      navigate('/ExpenseList'); // Redirect to dashboard after login
     } catch (error) {
       const errorMessage = error.response?.data?.message || 
-                         'Login failed. Please try again.';
+        'Login failed. Please try again.';
       setError(errorMessage);
     } finally {
       setLoading(false);

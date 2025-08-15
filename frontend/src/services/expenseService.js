@@ -40,14 +40,20 @@ const handleRequest = async (method, endpoint = '', data = null, token = null) =
   }
 };
 
-
 // API functions
 export const addExpense = async (expenseData, token) => {
   return handleRequest('POST', '', expenseData, token);
 };
 
 export const getExpenses = async (token) => {
-  return handleRequest('GET', '', null, token);
+  try {
+    const response = await handleRequest('GET', '', null, token);
+    // Ensure we always return an array
+    return Array.isArray(response) ? response : response?.data || [];
+  } catch (error) {
+    console.error('Error getting expenses:', error);
+    return []; // Return empty array on error
+  }
 };
 
 export const updateExpense = async (id, expenseData, token) => {

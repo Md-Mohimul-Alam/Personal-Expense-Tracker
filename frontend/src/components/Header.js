@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Header = () => {
+  const { user, logout } = useAuth();
+
   return (
     <header className="bg-teal-600 text-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -16,8 +19,8 @@ const Header = () => {
         <nav>
           <ul className="flex space-x-4">
             <li>
-              <Link to="/" className="hover:text-gray-300 hover:underline">
-                Home
+              <Link to="/expenses" className="hover:text-gray-300 hover:underline">
+                Expenses
               </Link>
             </li>
             <li>
@@ -25,26 +28,35 @@ const Header = () => {
                 Add Expense
               </Link>
             </li>
-            <li>
-              <Link to="/login" className="hover:text-gray-300 hover:underline">
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link to="/register" className="hover:text-gray-300  hover:underline">
-                Register
-              </Link>
-            </li>
+            {!user ? (
+              <>
+                <li>
+                  <Link to="/" className="hover:text-gray-300 hover:underline">
+                    Login
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/register" className="hover:text-gray-300 hover:underline">
+                    Register
+                  </Link>
+                </li>
+              </>
+            ) : null}
           </ul>
         </nav>
 
-        {/* User Profile / Logout (Optional) */}
-        {/* Example: If user is logged in */}
-        <div className="hidden sm:flex sm:items-center">
-          <button className="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600">
-            Logout
-          </button>
-        </div>
+        {/* User Profile / Logout */}
+        {user ? (
+          <div className="flex items-center space-x-4">
+            <span className="hidden sm:inline">Welcome, {user.name}</span>
+            <button 
+              onClick={logout}
+              className="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600 transition-colors duration-200"
+            >
+              Logout
+            </button>
+          </div>
+        ) : null}
       </div>
     </header>
   );
