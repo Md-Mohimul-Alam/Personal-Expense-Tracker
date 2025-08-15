@@ -26,16 +26,29 @@ exports.getAllExpenses = async (req, res) => {
 exports.updateExpense = async (req, res) => {
   try {
     const expense = await Expense.findOneAndUpdate(
-      { _id: req.params.id, user: req.user.id }, // Ensure the expense belongs to the user
+      { _id: req.params.id, user: req.user.id },
       req.body,
-      { new: true }
+      { new: true, runValidators: true }
     );
+    
     if (!expense) {
-      return res.status(404).json({ message: 'Expense not found or unauthorized' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Expense not found or unauthorized'
+      });
     }
-    res.json(expense);
+    
+    res.json({
+      success: true,
+      message: 'Expense updated successfully',
+      data: expense
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({
+      success: false,
+      message: 'Error updating expense',
+      error: error.message
+    });
   }
 };
 exports.deleteExpense = async (req, res) => {

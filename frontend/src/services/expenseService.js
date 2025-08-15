@@ -78,7 +78,25 @@ export const getExpenses = async (token) => {
 };
 
 export const updateExpense = async (id, expenseData, token) => {
-  return handleRequest('PATCH', `/${id}`, expenseData, token);
+  if (!token) throw new Error('Authentication token is required');
+  
+  try {
+    const config = {
+      method: 'PATCH',
+      url: `/${id}`,
+      data: expenseData,
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    const response = await api(config);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating expense:', error);
+    throw new Error(error.message || 'Failed to update expense');
+  }
 };
 export const deleteExpense = async (id, token) => {
   if (!token) throw new Error('Authentication token is required');

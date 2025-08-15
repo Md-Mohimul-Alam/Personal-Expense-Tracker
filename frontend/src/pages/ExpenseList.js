@@ -1,16 +1,28 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { getExpenses, deleteExpense } from '../services/expenseService';
+import { Link } from 'react-router-dom';
+
+import { getExpenses, deleteExpense, updateExpense } from '../services/expenseService';
 import { format } from 'date-fns';
 
 const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
   const [expenses, setExpenses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    amount: '',
+    category: '',
+    date: ''
+  });
+  const [isSaving, setIsSaving] = useState(false);
 
   const fetchExpenses = async () => {
     setIsLoading(true);
@@ -61,7 +73,51 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
     }
   };
 
-  // Helper functions remain the same
+  const handleEditClick = (expense) => {
+    setEditingId(expense._id);
+    setEditingExpense(expense);
+    setEditFormData({
+      title: expense.title,
+      amount: expense.amount.toString(),
+      category: expense.category,
+      date: expense.date.split('T')[0] // Format date for input[type="date"]
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateExpense = async () => {
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Authentication required');
+
+      const updatedExpense = {
+        ...editFormData,
+        amount: parseFloat(editFormData.amount),
+        date: new Date(editFormData.date).toISOString()
+      };
+
+      await updateExpense(editingExpense._id, updatedExpense, token);
+
+      // Update the UI
+      setExpenses(prev => prev.map(exp => 
+        exp._id === editingExpense._id ? { ...exp, ...updatedExpense } : exp
+      ));
+
+      setSuccessMessage('Expense updated successfully');
+      setIsEditModalOpen(false);
+      setEditingId(null);
+      
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Update error:', error);
+      setError(error.message || 'Failed to update expense');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Helper functions
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -95,7 +151,7 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
 
   const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-  // Loading and empty states remain the same
+  // Loading and empty states
   if (isLoading && expenses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -153,52 +209,152 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
   }
 
   return (
-   <div className="space-y-6">
-      <div className="relative flex justify-between items-center w-full ml-10 pl-10 left-10 top-5 ">
-        <div className="flex space-x-4 w-full ml-10 pl-10 left-10 top-10 inset-x-0 pb-10">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 mr-4 left-10 ml-10 ">
-            <div className="flex items-center mb-3 md:mb-0 mr-4">
-              <svg className="h-8 w-8 text-teal-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h2 className="text-2xl font-bold text-teal-800">Expense History</h2>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto ml-10">
-              <div className="relative flex-grow ml-10">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search expenses..."
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              
-              <select
-                className="block w-full pl-3 pr-10 py-2 ml-10 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-              >
-                <option value="all">All Categories</option>
-                <option value="Food">Food</option>
-                <option value="Transport">Transport</option>
-                <option value="Shopping">Shopping</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Utilities">Utilities</option>
-                <option value="Others">Others</option>
-              </select>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-gray-900"> Expenses History</h2>
+        <Link to={"/add"}
+          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 flex items-center"
+        >
+          <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4m16 0a8 8 0 11-16 0 8 8 0 0116 0z" />
+          </svg>
+          Add Expense
+        </Link>
+      </div>
+      {/* Filter and Search Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="search" className="sr-only">Search</label>
+          <input
+            type="text"
+            id="search"
+            placeholder="Search expenses..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div>
+          <label htmlFor="filter" className="sr-only">Filter</label>
+          <select
+            id="filter"
+            className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
+            <option value="all">All Categories</option>
+            <option value="Food">Food</option>
+            <option value="Transport">Transport</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Utilities">Utilities</option>
+            <option value="Others">Others</option>
+          </select>
         </div>
       </div>
 
+      {/* Modal for editing expense */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Expense</h3>
+              
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleUpdateExpense();
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="edit-title" className="block text-sm font-medium text-gray-700 mb-1">
+                      Title
+                    </label>
+                    <input
+                      id="edit-title"
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+                      value={editFormData.title}
+                      onChange={(e) => setEditFormData({...editFormData, title: e.target.value})}
+                      required
+                    />
+                  </div>
 
+                  <div>
+                    <label htmlFor="edit-amount" className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount
+                    </label>
+                    <input
+                      id="edit-amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+                      value={editFormData.amount}
+                      onChange={(e) => setEditFormData({...editFormData, amount: e.target.value})}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-category" className="block text-sm font-medium text-gray-700 mb-1">
+                      Category
+                    </label>
+                    <select
+                      id="edit-category"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+                      value={editFormData.category}
+                      onChange={(e) => setEditFormData({...editFormData, category: e.target.value})}
+                      required
+                    >
+                      <option value="">Select a category</option>
+                      <option value="Food">Food</option>
+                      <option value="Transport">Transport</option>
+                      <option value="Shopping">Shopping</option>
+                      <option value="Entertainment">Entertainment</option>
+                      <option value="Utilities">Utilities</option>
+                      <option value="Others">Others</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-date" className="block text-sm font-medium text-gray-700 mb-1">
+                      Date
+                    </label>
+                    <input
+                      id="edit-date"
+                      type="date"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+                      value={editFormData.date}
+                      onChange={(e) => setEditFormData({...editFormData, date: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingId(null);
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                    disabled={isSaving}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success message */}
       {successMessage && (
@@ -262,24 +418,39 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-500">{formatDate(expense.date)}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <button
+                      onClick={() => handleEditClick(expense)}
+                      disabled={editingId === expense._id}
+                      className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit
+                    </button>
+                    
                     <button
                       onClick={() => handleDelete(expense._id)}
                       disabled={deletingId === expense._id}
-                      className="text-red-600 hover:text-red-900 disabled:text-red-300 disabled:cursor-not-allowed transition-colors duration-200"
+                      className="inline-flex items-center px-3 py-1 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {deletingId === expense._id ? (
-                        <svg className="animate-spin h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <>
+                          <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Deleting...
+                        </>
                       ) : (
-                        <span className="flex items-center">
-                          <svg className="h-5 w-5 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <>
+                          <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                           Delete
-                        </span>
+                        </>
                       )}
                     </button>
                   </td>
@@ -290,6 +461,7 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
         </div>
       </div>
 
+      {/* Error Message */}
       {error && (
         <div className="p-4 bg-red-50 rounded-lg shadow-sm">
           <div className="flex items-center">

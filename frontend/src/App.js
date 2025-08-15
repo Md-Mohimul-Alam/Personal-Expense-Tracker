@@ -12,7 +12,7 @@ const App = () => {
     <AuthProvider>
       <Router>
         <Header />
-        <main className="min-h-screen bg-gray-100">
+        <main className="min-h-screen bg-gray-100 p-8">
           <Routes>
             <Route path="/expenses" element={<ExpenseList />} />
             <Route path="/add" element={<AddExpense />} />
