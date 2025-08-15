@@ -9,6 +9,7 @@ const app = express();
 
 // Enhanced CORS configuration
 const corsOptions = {
+  origin: 'https://personal-expense-tracker-henna.vercel.app/',
   origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
