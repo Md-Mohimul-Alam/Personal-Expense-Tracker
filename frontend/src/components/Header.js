@@ -22,7 +22,7 @@ const Header = () => {
         {/* Logo Section */}
         <div className="text-2xl font-bold">
           <Link to="/" className="hover:text-gray-300">
-            <img src={logo} alt="Logo" className="h-11 inline-block hover:bg-white hover:rounded-md " />
+            <img src={logo} alt="Logo" className="h-11 inline-block bg-white rounded-md " />
           </Link>
         </div>
 

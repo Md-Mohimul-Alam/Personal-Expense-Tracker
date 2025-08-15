@@ -6,6 +6,7 @@ import Login from './pages/LoginForm';
 import Register from './pages/RegisterForm'; 
 import ExpenseList from './pages/ExpenseList';
 import { AuthProvider } from './context/AuthContext';
+import Footer from './components/Footer';
 import './index.css';
 const App = () => {
   return (
@@ -20,6 +21,7 @@ const App = () => {
             <Route path="/register" element={<Register />} />
           </Routes>
         </main>
+        <Footer />
       </Router>
     </AuthProvider>
   );
