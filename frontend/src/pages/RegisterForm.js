@@ -38,7 +38,7 @@ const RegisterForm = ({ onRegister }) => {
       localStorage.setItem('user', JSON.stringify(user));
       
       if (onRegister) onRegister(user._id);
-      navigate('/dashboard'); // Redirect to dashboard after registration
+      navigate('/'); // Redirect to dashboard after registration
     } catch (error) {
       const errorMessage = error.response?.data?.message || 
                          error.response?.data?.error || 

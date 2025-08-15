@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
-const LoginForm = ({ onLogin }) => {
+const LoginForm = () => {
   const [credentials, setCredentials] = useState({ 
     email: '', 
     password: '' 
@@ -10,6 +11,7 @@ const LoginForm = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     setCredentials({ ...credentials, [e.target.name]: e.target.value });
@@ -33,11 +35,8 @@ const LoginForm = ({ onLogin }) => {
       );
       
       const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      if (onLogin) onLogin(user._id);
-      navigate('/ExpenseList'); // Redirect to dashboard after login
+      login(token, user);
+      navigate('/expenses');
     } catch (error) {
       const errorMessage = error.response?.data?.message || 
         'Login failed. Please try again.';

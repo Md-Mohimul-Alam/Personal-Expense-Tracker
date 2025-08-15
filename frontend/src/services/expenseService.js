@@ -2,13 +2,26 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:5005/api/expenses';
 
-// Create axios instance with default config
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   }
 });
+
+// Improved token decoder
+const decodeToken = (token) => {
+  try {
+    if (!token) return null;
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const decoded = JSON.parse(atob(payload));
+    return decoded;
+  } catch (e) {
+    console.error('Token decoding error:', e);
+    return null;
+  }
+};
 
 const handleRequest = async (method, endpoint = '', data = null, token = null) => {
   try {
@@ -25,14 +38,14 @@ const handleRequest = async (method, endpoint = '', data = null, token = null) =
     const response = await api(config);
     return response.data;
   } catch (error) {
-    console.error(`Error with ${method} request:`, error.response || error.message);
+    console.error(`Error with ${method} request:`, error.response || error);
     
     let errorMessage = 'Something went wrong!';
     if (error.response) {
-      // Server responded with a status code outside 2xx
-      errorMessage = error.response.data?.message || error.response.statusText;
+      errorMessage = error.response.data?.message || 
+                   error.response.data?.error || 
+                   error.response.statusText;
     } else if (error.request) {
-      // Request was made but no response received
       errorMessage = 'No response from server';
     }
     
@@ -40,26 +53,69 @@ const handleRequest = async (method, endpoint = '', data = null, token = null) =
   }
 };
 
-// API functions
 export const addExpense = async (expenseData, token) => {
+  if (!token) throw new Error('Authentication token is required');
+  
+  const decoded = decodeToken(token);
+  console.log('Decoded token:', decoded); // Debug log
+  
+  // Changed from decoded?.id to decoded?.userId
+  if (!decoded?.userId) {
+    throw new Error('Invalid or expired session. Please login again.');
+  }
+
   return handleRequest('POST', '', expenseData, token);
 };
 
 export const getExpenses = async (token) => {
   try {
     const response = await handleRequest('GET', '', null, token);
-    // Ensure we always return an array
     return Array.isArray(response) ? response : response?.data || [];
   } catch (error) {
     console.error('Error getting expenses:', error);
-    return []; // Return empty array on error
+    throw error;
   }
 };
 
 export const updateExpense = async (id, expenseData, token) => {
   return handleRequest('PATCH', `/${id}`, expenseData, token);
 };
-
 export const deleteExpense = async (id, token) => {
-  return handleRequest('DELETE', `/${id}`, null, token);
+  if (!token) throw new Error('Authentication token is required');
+  
+  try {
+    const config = {
+      method: 'DELETE',
+      url: `/${id}`,
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      responseType: 'json' // Explicitly set response type
+    };
+    
+    const response = await api(config);
+    
+    // Handle cases where response.data might be empty
+    if (!response.data) {
+      return { success: true, message: 'Expense deleted' };
+    }
+    
+    return response.data;
+    
+  } catch (error) {
+    // Improved error handling
+    if (error.response) {
+      // Server responded with error status
+      const serverError = error.response.data?.message || 
+         error.response.statusText;
+      throw new Error(serverError);
+    } else if (error.request) {
+      // Request was made but no response
+      throw new Error('No response from server');
+    } else {
+      // Other errors
+      throw new Error(error.message);
+    }
+  }
 };

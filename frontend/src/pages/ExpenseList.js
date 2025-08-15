@@ -7,21 +7,24 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
   const [expenses, setExpenses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const token = localStorage.getItem('token');
 
   const fetchExpenses = async () => {
     setIsLoading(true);
     setError(null);
     try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Authentication required');
+      
       const response = await getExpenses(token);
       const expensesData = Array.isArray(response) ? response : response?.data || [];
       setExpenses(expensesData);
     } catch (error) {
       console.error('Error fetching expenses:', error);
-      setError(error.response?.data?.message || 'Failed to load expenses. Please try again.');
+      setError(error.message || 'Failed to load expenses. Please try again.');
       setExpenses([]);
     } finally {
       setIsLoading(false);
@@ -30,24 +33,35 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
 
   useEffect(() => {
     fetchExpenses();
-  }, [token, refreshTrigger]);
+  }, [refreshTrigger]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this expense?')) return;
-    
     setDeletingId(id);
+    setError(null);
+    setSuccessMessage(null);
+    
     try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Authentication required');
+      
       await deleteExpense(id, token);
-      onDeleteExpense(id);
-      setExpenses(prev => prev.filter(expense => expense._id !== id));
+      
+      // Update UI after successful deletion
+      setExpenses(prev => prev.filter(exp => exp._id !== id));
+      setSuccessMessage('Expense deleted successfully');
+      onDeleteExpense();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
-      console.error('Error deleting expense:', error);
-      setError(error.response?.data?.message || 'Failed to delete expense. Please try again.');
+      console.error('Delete error:', error);
+      setError(error.message || 'Failed to delete expense');
     } finally {
       setDeletingId(null);
     }
   };
 
+  // Helper functions remain the same
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -81,6 +95,7 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
 
   const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
+  // Loading and empty states remain the same
   if (isLoading && expenses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -138,41 +153,64 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h2 className="text-2xl font-bold text-gray-800">Expense History</h2>
-        
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <div className="relative flex-grow">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+   <div className="space-y-6">
+      <div className="relative flex justify-between items-center w-full ml-10 pl-10 left-10 top-5 ">
+        <div className="flex space-x-4 w-full ml-10 pl-10 left-10 top-10 inset-x-0 pb-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 mr-4 left-10 ml-10 ">
+            <div className="flex items-center mb-3 md:mb-0 mr-4">
+              <svg className="h-8 w-8 text-teal-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
+              <h2 className="text-2xl font-bold text-teal-800">Expense History</h2>
             </div>
-            <input
-              type="text"
-              placeholder="Search expenses..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto ml-10">
+              <div className="relative flex-grow ml-10">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search expenses..."
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <select
+                className="block w-full pl-3 pr-10 py-2 ml-10 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              >
+                <option value="all">All Categories</option>
+                <option value="Food">Food</option>
+                <option value="Transport">Transport</option>
+                <option value="Shopping">Shopping</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Utilities">Utilities</option>
+                <option value="Others">Others</option>
+              </select>
+            </div>
           </div>
-          
-          <select
-            className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="all">All Categories</option>
-            <option value="Food">Food</option>
-            <option value="Transport">Transport</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Entertainment">Entertainment</option>
-            <option value="Utilities">Utilities</option>
-            <option value="Others">Others</option>
-          </select>
         </div>
       </div>
+
+
+
+      {/* Success message */}
+      {successMessage && (
+        <div className="p-4 bg-green-50 rounded-lg shadow-sm">
+          <div className="flex items-center">
+            <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-green-700">{successMessage}</span>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white overflow-hidden shadow rounded-xl">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -261,7 +299,10 @@ const ExpenseList = ({ onDeleteExpense = () => {}, refreshTrigger }) => {
             <span className="text-red-700">{error}</span>
           </div>
           <button 
-            onClick={fetchExpenses}
+            onClick={() => {
+              setError(null);
+              fetchExpenses();
+            }}
             className="mt-2 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-sm transition-colors duration-200"
           >
             Retry

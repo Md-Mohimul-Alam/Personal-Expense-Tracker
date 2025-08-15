@@ -1,109 +1,71 @@
 const Expense = require('../models/Expense');
-
-// Add a new expense
 exports.addExpense = async (req, res) => {
-  const { title, amount, category, date } = req.body;
-
   try {
     const expense = new Expense({
-      title,
-      amount,
-      category,
-      date,
-      user: req.user.userId  // Associate expense with user
+      ...req.body,
+      user: req.user.id // Comes from your auth middleware
     });
-
     await expense.save();
-    res.status(201).json({
-      success: true,
-      data: expense
-    });
+    res.status(201).json(expense);
   } catch (error) {
-    console.error('Error adding expense:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error adding expense',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    res.status(400).json({ 
+      message: error.message,
+      error: error.errors 
     });
   }
 };
-
-// Get all expenses for authenticated user
 exports.getAllExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find({ user: req.user.userId });
-    res.status(200).json({
-      success: true,
-      count: expenses.length,
-      data: expenses
-    });
+    const expenses = await Expense.find({ user: req.user.id }); // Only fetch expenses for the current user
+    res.json(expenses);
   } catch (error) {
-    console.error('Error fetching expenses:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error fetching expenses',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Update an expense
 exports.updateExpense = async (req, res) => {
-  const { id } = req.params;
-  const { title, amount, category, date } = req.body;
-
   try {
-    const updatedExpense = await Expense.findOneAndUpdate(
-      { _id: id, user: req.user.userId },  // Ensure the expense belongs to the user
-      { title, amount, category, date },
-      { new: true, runValidators: true }
+    const expense = await Expense.findOneAndUpdate(
+      { _id: req.params.id, user: req.user.id }, // Ensure the expense belongs to the user
+      req.body,
+      { new: true }
     );
-
-    if (!updatedExpense) {
-      return res.status(404).json({
-        success: false,
-        message: 'Expense not found or unauthorized'
-      });
+    if (!expense) {
+      return res.status(404).json({ message: 'Expense not found or unauthorized' });
     }
-
-    res.status(200).json({
-      success: true,
-      data: updatedExpense
-    });
+    res.json(expense);
   } catch (error) {
-    console.error('Error updating expense:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error updating expense',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.status(400).json({ message: error.message });
   }
 };
-
-// Delete an expense
 exports.deleteExpense = async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const deletedExpense = await Expense.findOneAndDelete({
-      _id: id, 
-      user: req.user.userId  // Ensure the expense belongs to the user
+    const expense = await Expense.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.id
     });
-
-    if (!deletedExpense) {
-      return res.status(404).json({
+    
+    if (!expense) {
+      return res.status(404).json({ 
         success: false,
         message: 'Expense not found or unauthorized'
       });
     }
-
-    res.status(204).send();
+    
+    return res.json({
+      success: true,
+      message: 'Expense deleted successfully',
+      data: {
+        id: expense._id,
+        title: expense.title
+      }
+    });
+    
   } catch (error) {
-    console.error('Error deleting expense:', error);
-    res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Error deleting expense',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Server error',
+      error: error.message
     });
   }
 };
