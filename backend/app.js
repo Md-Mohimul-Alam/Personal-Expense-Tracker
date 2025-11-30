@@ -9,8 +9,7 @@ const app = express();
 
 // Enhanced CORS configuration
 const corsOptions = {
-  origin: 'https://personal-expense-tracker-henna.vercel.app/',
-  origin: 'http://localhost:3000',
+  origin: ['https://personal-expense-tracker-henna.vercel.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -23,12 +22,12 @@ app.use(express.urlencoded({ extended: true }));
 
 // Enhanced MongoDB connection with retry logic
 const connectWithRetry = () => {
-  mongoose.connect(process.env.MONGO_URI, {
+  mongoose.connect(process.env.MONGODB_URI, {  // Changed from MONGO_URI to MONGODB_URI
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000,  // 5 seconds timeout
-    socketTimeoutMS: 45000,         // 45 seconds socket timeout
-    family: 4,                     // Force IPv4
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    family: 4,
     retryWrites: true,
     w: 'majority'
   })
@@ -69,11 +68,30 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Personal Expense Tracker API',
+    version: '1.0.0',
+    endpoints: {
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login'
+      },
+      expenses: {
+        getAll: 'GET /api/expenses',
+        add: 'POST /api/expenses',
+        update: 'PUT /api/expenses/:id',
+        delete: 'DELETE /api/expenses/:id'
+      }
+    }
+  });
+});
+
 // Enhanced error handling
 app.use((err, req, res, next) => {
   console.error('🔥 Error:', err.stack);
   
-  // Handle Mongoose validation errors
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       error: 'Validation Error',
@@ -81,12 +99,10 @@ app.use((err, req, res, next) => {
     });
   }
   
-  // Handle JWT errors
   if (err.name === 'JsonWebTokenError') {
     return res.status(401).json({ error: 'Invalid token' });
   }
   
-  // Default error response
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })

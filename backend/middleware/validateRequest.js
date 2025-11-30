@@ -1,11 +1,34 @@
-const { validationResult } = require('express-validator');
-
+// Simple validation middleware without express-validator
 const validateRequest = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+  // Basic required fields check
+  const { body } = req;
+  
+  if (req.path === '/register') {
+    if (!body.username || !body.email || !body.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required'
+      });
+    }
+    
+    if (body.password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
   }
-  next(); // Continue to the next middleware or route handler
+  
+  if (req.path === '/login') {
+    if (!body.email || !body.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+  }
+  
+  next();
 };
 
 module.exports = validateRequest;

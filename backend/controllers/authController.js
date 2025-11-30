@@ -18,11 +18,6 @@ const errorResponse = (res, status, message, error = null) => {
 exports.registerUser = async (req, res) => {
   const { username, email, password } = req.body;
 
-  // Basic validation
-  if (!username || !email || !password) {
-    return errorResponse(res, 400, 'All fields are required');
-  }
-
   try {
     // Check if user exists with case-insensitive email
     const existingUser = await User.findOne({ 
@@ -40,7 +35,7 @@ exports.registerUser = async (req, res) => {
     // Create and save new user
     const newUser = new User({
       username,
-      email: email.toLowerCase(), // Store email in lowercase
+      email: email.toLowerCase(),
       password: hashedPassword
     });
 
@@ -50,19 +45,19 @@ exports.registerUser = async (req, res) => {
     const token = jwt.sign(
       { userId: newUser._id }, 
       process.env.JWT_SECRET, 
-      { expiresIn: '1h' }
+      { expiresIn: '24h' } // Extended to 24 hours for better UX
     );
 
     // Omit sensitive data from response
     const userResponse = {
       _id: newUser._id,
       username: newUser.username,
-      email: newUser.email,
-      createdAt: newUser.createdAt
+      email: newUser.email
     };
 
     res.status(201).json({
       success: true,
+      message: 'User registered successfully',
       token,
       user: userResponse
     });
@@ -76,10 +71,6 @@ exports.registerUser = async (req, res) => {
 // Login user
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    return errorResponse(res, 400, 'Email and password are required');
-  }
 
   try {
     // Find user with case-insensitive email
@@ -101,7 +92,7 @@ exports.loginUser = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '24h' }
     );
 
     // Omit sensitive data from response
@@ -113,6 +104,7 @@ exports.loginUser = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: 'Login successful',
       token,
       user: userResponse
     });

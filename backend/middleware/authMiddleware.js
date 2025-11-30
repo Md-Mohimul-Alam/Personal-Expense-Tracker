@@ -2,15 +2,22 @@ const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
+  
   if (!token) {
-    return res.status(401).json({ message: 'No token, authorization denied' });
+    return res.status(401).json({ 
+      success: false,
+      message: 'No token, authorization denied' 
+    });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // Attaches user ID (assuming decoded contains `id`)
+    req.user = { id: decoded.userId }; // Use userId from your JWT payload
     next();
   } catch (error) {
-    res.status(401).json({ message: 'Token is not valid' });
+    res.status(401).json({ 
+      success: false,
+      message: 'Token is not valid' 
+    });
   }
 };
