@@ -1,24 +1,20 @@
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-
-dotenv.config();
 
 const connectDB = async () => {
   try {
-    mongoose.set('strictQuery', false); // To suppress the deprecation warning
-    
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      auth: {
-        username: process.env.MONGO_USER,
-        password: process.env.MONGO_PASS
-      },
-      authSource: 'admin' // Typically 'admin' is the authentication database
+    // For MongoDB Atlas, use the connection string directly
+    // No need for separate auth object
+    await mongoose.connect(process.env.MONGODB_URI, {
+      // These options are sufficient for MongoDB Atlas
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
     });
-    console.log('MongoDB connected successfully');
+    
+    console.log('✅ MongoDB connected successfully');
   } catch (err) {
-    console.error('Error connecting to MongoDB:', err.message);
+    console.error('❌ Error connecting to MongoDB:', err.message);
+    console.log('💡 Make sure your MONGODB_URI in .env file is correct');
     process.exit(1);
   }
 };

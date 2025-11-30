@@ -20,20 +20,18 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Enhanced MongoDB connection with retry logic
+// MongoDB Atlas connection with retry logic
 const connectWithRetry = () => {
-  mongoose.connect(process.env.MONGODB_URI, {  // Changed from MONGO_URI to MONGODB_URI
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+  console.log('🔗 Connecting to MongoDB Atlas...');
+  
+  mongoose.connect(process.env.MONGODB_URI, {
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
-    family: 4,
-    retryWrites: true,
-    w: 'majority'
+    maxPoolSize: 10,
   })
-  .then(() => console.log('✅ MongoDB connected successfully'))
+  .then(() => console.log('✅ MongoDB Atlas connected successfully'))
   .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
+    console.error('❌ MongoDB Atlas connection error:', err.message);
     console.log('⏳ Retrying connection in 5 seconds...');
     setTimeout(connectWithRetry, 5000);
   });
@@ -64,7 +62,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'UP',
     database: mongoose.connection.readyState === 1 ? 'CONNECTED' : 'DISCONNECTED',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV
   });
 });
 
@@ -73,6 +72,7 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Personal Expense Tracker API',
     version: '1.0.0',
+    database: 'MongoDB Atlas',
     endpoints: {
       auth: {
         register: 'POST /api/auth/register',
@@ -103,6 +103,13 @@ app.use((err, req, res, next) => {
     return res.status(401).json({ error: 'Invalid token' });
   }
   
+  // MongoDB Atlas specific errors
+  if (err.name === 'MongoServerError') {
+    if (err.code === 8000) {
+      return res.status(401).json({ error: 'MongoDB authentication failed' });
+    }
+  }
+  
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
@@ -114,6 +121,7 @@ const PORT = process.env.PORT || 5005;
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Access at: http://localhost:${PORT}`);
+  console.log(`📊 Using MongoDB Atlas`);
 });
 
 // Graceful shutdown
