@@ -2,136 +2,63 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const expenseRoutes = require('./routes/expenseRoutes');
-const authRoutes = require('./routes/authRoutes');
+const connectDB = require('./config/db');
 
 const app = express();
 
-// Enhanced CORS configuration
-const corsOptions = {
+// CORS
+app.use(cors({
   origin: ['https://personal-expense-tracker-henna.vercel.app', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
-};
-app.use(cors(corsOptions));
+}));
 
-// Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// MongoDB Atlas connection with retry logic
-const connectWithRetry = () => {
-  console.log('🔗 Connecting to MongoDB Atlas...');
-  
-  mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-    maxPoolSize: 10,
-  })
-  .then(() => console.log('✅ MongoDB Atlas connected successfully'))
-  .catch(err => {
-    console.error('❌ MongoDB Atlas connection error:', err.message);
-    console.log('⏳ Retrying connection in 5 seconds...');
-    setTimeout(connectWithRetry, 5000);
-  });
-};
-
-// Initialize connection
-connectWithRetry();
-
-// Event listeners for MongoDB connection
-mongoose.connection.on('connected', () => {
-  console.log('📊 MongoDB event connected');
-});
-
-mongoose.connection.on('error', (err) => {
-  console.error('❌ MongoDB event error:', err);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('⚠️  MongoDB event disconnected');
-});
+// Initialize database
+connectDB();
 
 // Routes
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/expenses', require('./routes/expenseRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'UP',
-    database: mongoose.connection.readyState === 1 ? 'CONNECTED' : 'DISCONNECTED',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
-  });
+// Test endpoint
+app.get('/test', async (req, res) => {
+  try {
+    // Test database connection
+    const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+    
+    res.json({
+      message: 'Server is working!',
+      database: dbStatus,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Server error',
+      error: error.message
+    });
+  }
 });
 
-// Root endpoint
+// Info endpoint
 app.get('/', (req, res) => {
   res.json({
-    message: 'Personal Expense Tracker API',
+    message: 'Personal Expense Tracker API 🚀',
     version: '1.0.0',
-    database: 'MongoDB Atlas',
-    endpoints: {
-      auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login'
-      },
-      expenses: {
-        getAll: 'GET /api/expenses',
-        add: 'POST /api/expenses',
-        update: 'PUT /api/expenses/:id',
-        delete: 'DELETE /api/expenses/:id'
-      }
-    }
+    database: 'MongoDB Local',
+    status: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
 });
 
-// Enhanced error handling
-app.use((err, req, res, next) => {
-  console.error('🔥 Error:', err.stack);
-  
-  if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      error: 'Validation Error',
-      details: err.errors
-    });
-  }
-  
-  if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-  
-  // MongoDB Atlas specific errors
-  if (err.name === 'MongoServerError') {
-    if (err.code === 8000) {
-      return res.status(401).json({ error: 'MongoDB authentication failed' });
-    }
-  }
-  
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
-
-// Start server
 const PORT = process.env.PORT || 5005;
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Access at: http://localhost:${PORT}`);
-  console.log(`📊 Using MongoDB Atlas`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('💤 Server closed');
-    mongoose.connection.close(false, () => {
-      console.log('📊 MongoDB connection closed');
-      process.exit(0);
-    });
-  });
+app.listen(PORT, () => {
+  console.log('='.repeat(50));
+  console.log('🚀 Server Started Successfully');
+  console.log('='.repeat(50));
+  console.log(`📍 Port: ${PORT}`);
+  console.log(`🌐 URL: http://localhost:${PORT}`);
+  console.log(`📊 Database: MongoDB Local`);
+  console.log('='.repeat(50));
 });
